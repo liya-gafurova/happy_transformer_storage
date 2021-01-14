@@ -3,7 +3,6 @@ HappyBERT: a wrapper over PyTorch's BERT implementation
 
 """
 
-from collections import namedtuple
 # disable pylint TODO warning
 # pylint: disable=W0511
 import re
@@ -15,11 +14,9 @@ from transformers import (
 )
 
 import torch
-import numpy as np
 
 from happytransformer.happy_transformer import HappyTransformer
-from happytransformer.qa_util import qa_probabilities
-from happytransformer.tokenize import tokenize_sentences
+
 
 class HappyBERT(HappyTransformer):
     """
@@ -82,17 +79,14 @@ class HappyBERT(HappyTransformer):
                 as either a probability or a boolean
         """
 
-        if not self.__is_one_sentence(sentence_a) or not self.__is_one_sentence(sentence_b):
-            raise ValueError('Each inputted text variable for the "predict_next_sentence" method must contain a single sentence')
+        if not self.__is_one_sentence(sentence_a) or not  self.__is_one_sentence(sentence_b):
+            self.logger.error("Each inputted text variable for the \"predict_next_sentence\" method must contain a single sentence")
+            exit()
 
         if self.nsp is None:
             self._get_next_sentence_prediction()
-
-        if self.gpu_support == 'cuda':
-            self.nsp.to('cuda')
-
         connected = sentence_a + ' ' + sentence_b
-        tokenized_text = tokenize_sentences(self.tokenizer, connected)
+        tokenized_text = self._get_tokenized_text(connected)
         indexed_tokens = self.tokenizer.convert_tokens_to_ids(tokenized_text)
         segments_ids = self._get_segment_ids(tokenized_text)
         # Convert inputs to PyTorch tensors
@@ -104,9 +98,6 @@ class HappyBERT(HappyTransformer):
         probabilities = torch.nn.Softmax(dim=1)(predictions)
         # probability that sentence B follows sentence A
         correct_probability = probabilities[0][0].item()
-
-        if self.gpu_support == 'cuda':
-            torch.cuda.empty_cache()
 
         return (
             correct_probability if use_probability else 
@@ -140,54 +131,23 @@ class HappyBERT(HappyTransformer):
         :param text: The text containing the answer to the question
         :return: The answer to the given question, as a string
         """
-        return self.answers_to_question(question, text, 1)[0]["text"]
-
-    def _tokenize_qa(self, question, context):
-        input_text = ' '.join([
-            question, 
-            self.sep_token,
-            context
-        ])
-        input_ids = self.tokenizer.encode(input_text)
-        return input_ids
-
-    def _run_qa_model(self, input_ids):
         if self.qa is None:
             self._get_question_answering()
-        sep_id_index = input_ids.index(self.tokenizer.sep_token_id)
-        before_after_ids = [
-            0 if idx <= sep_id_index else 1
-            for idx, _ in enumerate(input_ids)
-        ]
+        input_text = self.cls_token + " " + question + " " + self.sep_token + " " + text + " " + self.sep_token
+        input_ids = self.tokenizer.encode(input_text)
+        sep_val = self.tokenizer.encode(self.sep_token)[-1]
+        token_type_ids = [0 if i <= input_ids.index(sep_val) else 1
+                          for i in range(len(input_ids))]
+        token_tensor = torch.tensor([input_ids])
+        segment_tensor = torch.tensor([token_type_ids])
         with torch.no_grad():
-            return self.qa(
-                input_ids=torch.tensor([input_ids]),
-                token_type_ids=torch.tensor([before_after_ids])
-            )
-
-    def answers_to_question(self, question, context, k=3):
-        input_ids = self._tokenize_qa(question, context)
-        qa_output = self._run_qa_model(input_ids)
-        sep_id_index = input_ids.index(self.tokenizer.sep_token_id)
-        probabilities = qa_probabilities(
-            # only consider logits from the context part of the embedding.
-            # that is, between the middle [SEP] token
-            # and the final [SEP] token
-            qa_output.start_logits[0][sep_id_index+1:-1],
-            qa_output.end_logits[0][sep_id_index+1:-1],
-            k
-        )
-        # qa probabilities use indices relative to context.
-        # tokens use indices relative to overall question [SEP] context embedding.
-        # need offset to resolve this difference
-        token_offset = sep_id_index + 1
-
-        return [
-            {"text": self.tokenizer.decode(
-                    # grab ids from start to end (inclusive) and decode to text
-                    input_ids[token_offset+answer.start_idx : token_offset+answer.end_idx+1]
-                ),
-            "softmax": answer.probability}
-
-            for answer in probabilities
-        ]
+           scores=  self.qa(input_ids=token_tensor,
+                    token_type_ids=segment_tensor)
+           start_scores = scores[0]
+           end_scores = scores[1]
+        all_tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+        answer_list = all_tokens[torch.argmax(start_scores):
+                                 torch.argmax(end_scores)+1]
+        answer = self.tokenizer.convert_tokens_to_string(answer_list)
+        answer = answer.replace(' \' ', '\' ').replace('\' s ', '\'s ')
+        return answer

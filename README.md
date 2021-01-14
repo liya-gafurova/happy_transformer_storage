@@ -2,19 +2,6 @@
 
 # Happy Transformer 
 
-## Table of Contents
-* [News](#News)
-* [Key Features](#Key-Features)
-* [Installation](#Installation)
-* [Initialization](#Initialization)
-* [Word Prediction](#Word-Prediction)
-* [Binary Sequence Classification](#Binary-Sequence-Classification)
-* [Next Sentence Prediction](#Next-Sentence-Prediction)
-* [Question Answering](#Question-Answering)
-* [Masked Word Prediction Fine-Tuning](#Masked-Word-Prediction-Fine-Tuning)
-* [Tech](#Tech)
-* [Call For Contributors](#Call-For-Contributors)
-
 ## News: 
 
 ### November 23rd, 2020
@@ -88,24 +75,20 @@ bert_base_cased = HappyBERT("bert-base-cased")
 bert_large_uncased = HappyBERT("bert-large-uncased")
 bert_large_cased = HappyBERT("bert-large-cased")
 ```
-## Word Prediction
-
-It is recommended that you use HappyROBERTA("roberta-large") for masked word prediction.
-Avoid using HappyBERT for masked word prediction. 
-If you do decide to use HappyXLNET or HappyBERT, then also use their corresponding "large cased model'. 
- 
-For all Happy Transformers, the masked token is **"[MASK]"**
-
-### Single Mask
+## Word Prediction 
 
 Each Happy Transformer has a public  method called "predict_mask(text, options, num_results)" with the following input arguments.
 1. Text: the text you wish to predict including a single masked token.
 2. options (default = every word): A limited set of words the model can return.
 3. num_results (default = 1): The number of returned predictions.
 
-returns: a list of dictionaries, where each dictionary contains a "word" and "softmax" key
+For all Happy Transformers, the masked token is **"[MASK]"**
 
+"predict_mask(text, options, num_results)" returns a list of dictionaries which is exemplified in Example 1 .
 
+It is recommended that you use HappyROBERTA("roberta-large") for masked word prediction.
+Avoid using HappyBERT for masked word prediction. 
+If you do decide to use HappyXLNET or HappyBERT, then also use their corresponding "large cased model'. 
 
 
 #### Example 1 :
@@ -159,101 +142,6 @@ print(type(results[1])) # prints: <class 'dict'>
 print(results[1]) # prints: {'word': 'pizza', 'softmax': 0.00017212195}
 
 ```
-
-
-### Multiple Mask
-
-The "predict_masks(text, options, num_results)" method predicts multiple masks within a string. 
-1. Text: the text you wish to predict that includes "[MASK]" at least once
-2. options: a list of lists, where each inner lists contains strings. The outer list is for each mask. The inner list is for the options for the nth mask.  
-3. num_results (default = 1): The number of returned predictions for each mask. 
-
-returns: a list of lists, where each inner list contains dictionaries.  Each dictionary has a "word" and "softmax" key
-
-The outer list is for the nth mask token. the inner list contains the the prediction(s) for the mask. 
-
-
-
-#### Example 1 :
-```sh
-from happytransformer import HappyROBERTA
-#--------------------------------------#
-happy_roberta = HappyROBERTA("roberta-large")
-text = "[MASK] have a [MASK] dog and I love [MASK] so much"
-results = happy_roberta.predict_masks(text)
-
-print(type(results))  # prints: <class 'list'>
-print(results)  # prints: [[{'word': 'i', 'softmax': 0.5861835479736328}], [{'word': 'little', 'softmax': 0.16358524560928345}], [{'word': 'him', 'softmax': 0.6039994359016418}]]
-
-first_mask_result = results[0]
-print(type(first_mask_result))  # prints: <class 'list'>
-print(first_mask_result)  # prints: [{'word': 'i', 'softmax': 0.5861835479736328}]
-
-first_prediction_result = first_mask_result[0]
-print(type(first_prediction_result))  # prints: <class 'dict'>
-print(first_prediction_result)  # prints: {'word': 'i', 'softmax': 0.5861835479736328}
-
-
-print(type(first_prediction_result["word"])) # <class 'str'>
-print(first_prediction_result["word"]) # i
-
-
-```
-
-#### Example 2 :
-```sh
-
-from happytransformer import HappyROBERTA
-#--------------------------------------#
-happy_roberta = HappyROBERTA("roberta-large")
-text = "[MASK] have a [MASK] dog and I love [MASK] so much"
-results = happy_roberta.predict_masks(text, num_results=2)
-
-print(type(results))  # prints: <class 'list'>
-print(results)  # prints: [[{'word': 'i', 'softmax': 0.5861835479736328}, {'word': 'I', 'softmax': 0.3941880762577057}], [{'word': 'little', 'softmax': 0.16358524560928345}, {'word': 'beautiful', 'softmax': 0.10422931611537933}] ...
-
-second_mask_result = results[1]
-print(type(second_mask_result))  # prints: <class 'list'>
-print(second_mask_result)  # prints: [{'word': 'little', 'softmax': 0.16358524560928345}, {'word': 'beautiful', 'softmax': 0.10422931611537933}]
-
-second_prediction_result = second_mask_result[1]
-print(type(second_prediction_result))  # prints: <class 'dict'>
-print(second_prediction_result)  # prints: {'word': 'beautiful', 'softmax': 0.10422931611537933}
-
-
-print(type(second_prediction_result["word"])) # prints: <class 'str'>
-print(second_prediction_result["word"]) # prints: beautiful
-
-
-```
-
-#### Example 3 :
-```sh
-from happytransformer import HappyROBERTA
-#--------------------------------------#
-happy_roberta = HappyROBERTA("roberta-large")
-text = "[MASK] have a [MASK] dog and I love [MASK] so much"
-
-options = [["We", "You"], ["smart", "massive"], ["him", "myself"]]
-results = happy_roberta.predict_masks(text, options=options)
-
-print(type(results))  # prints: <class 'list'>
-print(results)  # prints: [[{'word': 'We', 'softmax': 0.007347162}, {'word': 'You', 'softmax': 0.0007238558}], [{'word': 'smart', 'softmax': 1.1157575e-06}, {'word': 'massive', 'softmax': 1.0597887e-06}], [{'word': 'him', 'softmax': 0.00021874729}, {'word': 'myself', 'softmax': 3.0992996e-06}]]
-
-
-first_mask_result = results[0]
-print(type(first_mask_result))  # prints: <class 'list'>
-print(first_mask_result)  # prints: [{'word': 'We', 'softmax': 0.007347162}, {'word': 'You', 'softmax': 0.0007238558}]
-
-first_prediction_result = first_mask_result[0]
-print(type(first_prediction_result))  # prints: <class 'dict'>
-print(first_prediction_result)  # prints: {'word': 'We', 'softmax': 0.007347162}
-
-print(type(first_prediction_result["word"])) # <class 'str'>
-print(first_prediction_result["word"]) # We
-
-```
-
 ## Binary Sequence Classification 
 
 Binary sequence classification (BSC) has many applications. For example, by using BSC, you can train a model to predict if a yelp review is positive or negative. 
@@ -465,7 +353,7 @@ print(result) # prints: 0.999990701675415
 
 *Determine the answer to a given question using a body of supplied text.*
 
-##### Single Answer
+
 **HappyBERT** has a method called "answer_question" which is used for question answering tasks.
 The method takes the following arguments:
 
@@ -484,42 +372,6 @@ text = "Ernie is an orange Muppet character on the long running PBS and HBO chil
 result = happy_bert.answer_question(question, text)
 print(type(result)) # prints: <class 'str'>
 print(result) # prints: bert
-```
-
-##### Multiple Answers
-**HappyBERT** has a method called "answers_to_question" which is used to generate multiple answers for a single question
-
-    1. question: The question to be answered
-    2. text: The text containing the answer to the question
-    3. k: The number of answers that will be returned 
-
-The output is a list of  dictionaries. 
-Each dictionary contains two keys: text and softmax. 
-The text key contains the answer in the form of a string. 
-The softmax key contains the "probability" of the answer as a float between 0 and 1. 
-
-###### Example 1:
-```sh
-from happytransformer import HappyBERT
-#--------------------------------------#
-happy_bert = HappyBERT()
-question = "Who does Ernie live with?"
-text = "Ernie is an orange Muppet character on the long running PBS and HBO children's television show Sesame Street. He and his roommate Bert form the comic duo Bert and Ernie, one of the program's centerpieces, with Ernie acting the role of the naïve troublemaker and Bert the world weary foil."  # Source: https://en.wikipedia.org/wiki/Ernie_(Sesame_Street)
-result = happy_bert.answers_to_question(question, text, k=3)
-print(type(result)) # prints: <class 'list'>
-print(result) # prints: [{'text': 'bert', 'softmax': 0.9916905164718628}, {'text': 'roommate bert', 'softmax': 0.004403269849717617}, {'text': 'his roommate bert', 'softmax': 0.0039062034338712692}]
-
-
-best_answer = result[0]
-second_best_answer = result[1]
-
-print(type(best_answer)) # prints:<class 'dict'>
-
-print(best_answer) # prints: {'text': 'bert', 'softmax': 0.9916905164718628}
-
-print(best_answer["text"]) # prints: bert
-print(best_answer["softmax"]) # prints: 0.9916905164718628
-
 ```
 
 
@@ -647,7 +499,7 @@ It was like living in a goldfish bowl and Dan was on edge the minute he came thr
 
 Note 2: Evaluating on Cpu is not recommended as it will take considerably longer.
 
-#### Example 3:
+## Example 3:
 
 ```python
 from happytransformer import HappyROBERTA

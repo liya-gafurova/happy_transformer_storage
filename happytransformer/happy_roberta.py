@@ -38,10 +38,3 @@ class HappyROBERTA(HappyTransformer):
         """
         self.mlm = RobertaForMaskedLM.from_pretrained(self.model)
         self.mlm.eval()
-
-    def _postprocess_option(self, text):
-        if text.startswith("Ġ"):
-            return text[1:]
-        if text == '</s>':
-            return '.'
-        return text
